@@ -1,0 +1,119 @@
+create proc sp_SelectShowTimeByMovieID (@idMovie varchar(20))
+as begin
+    select distinct lC.maSuat, sC.thoiGian from LichChieu lC inner join
+	SuatChieu sC on
+	lC.maSuat = sC.maSuat
+	where maPhim like @idMovie
+end
+
+create proc sp_SelectRoomByMovieIDAndShowTimeAndDate (@idMovie varchar(20), @maSuat int, @ngayChieu varchar(50))
+as begin
+	select  lC.maPhong, p.tenPhong from LichChieu lC inner join
+	Phong p on
+	lC.maPhong = p.maPhong
+	where maPhim like @idMovie and lC.maSuat = @maSuat and ngayChieu like @ngayChieu order by lC.maPhong asc
+end
+
+create proc sp_SelectMovieByIDMovieSchedule (@maLichChieu int)
+	as begin
+	select p.tenPhim, pH.tenPhong, sC.thoiGian from LichChieu lC
+	inner join Phim p on p.maPhim = lC.maPhim
+	inner join SuatChieu sC on sC.maSuat = lC.maSuat
+	inner join Phong pH on pH.maPhong = lC.maPhong
+	where maLichChieu = @maLichChieu
+end
+
+create proc sp_SelectMovieByDate (@ngayChieu date)
+	as begin
+	select distinct p.* from Phim p 
+	inner join LichChieu lC on p.maPhim = lC.maPhim
+  	where lC.ngayChieu like @ngayChieu
+end
+
+create proc sp_SelectMovieScheduleByIdMovie (@maPhim Varchar(20))
+as begin
+	select lC.ngayChieu, sC.thoiGian, pH.tenPhong from Phim p 
+  	inner join LichChieu lC on p.maPhim = lC.maPhim
+  	inner join SuatChieu sC on lC.maSuat = sC.maSuat
+  	inner join Phong pH on lC.maPhong = pH.maPhong
+  	where p.maPhim like @maPhim
+end
+
+create proc sp_SelectAmount
+as	begin
+	select month(ngayDatVe) as 'thangSo' ,dateName(month, ngayDatVe ) as 'thangChu', Sum(giaPhim + giaLoaiGhe)  as 'doanhThuPhim',
+	ISNULL((select Sum(cTV.giaThucAn * cTV.soLuong) as 'doanhThuThucAn' from Ve v
+	left join ChiTietVe cTV on v.maVe = cTV.maVe
+	group by month(v.ngayDatVe) ,dateName(month, v.ngayDatVe )
+	having dateName(month, v.ngayDatVe ) like dateName(month, Ve.ngayDatVe )),0) as 'doanhThuThucAn',
+	(Sum(giaPhim + giaLoaiGhe)  + ISNULL((select Sum(cTV.giaThucAn * cTV.soLuong) as 'doanhThuThucAn' from Ve v
+	left join ChiTietVe cTV on v.maVe = cTV.maVe
+	group by month(v.ngayDatVe) ,dateName(month, v.ngayDatVe )
+	having dateName(month, v.ngayDatVe ) like dateName(month, Ve.ngayDatVe )),0)) as 'tongDoanhThu'from Ve
+	group by dateName(month, ngayDatVe ), month(ngayDatVe)
+	order by month(ngayDatVe) asc
+end
+
+create proc sp_SelectAmountTopThreeMovieInMonth(@month varchar(20))
+as begin
+	select top 3 lC.maPhim , Sum(v.giaPhim + v.giaLoaiGhe) as 'doanhThu',
+	CAST(Sum(v.giaPhim + v.giaLoaiGhe)/(select sum(v.giaPhim+v.giaLoaiGhe) from ve v
+	where datename(month,v.ngayDatVe) like @month) * 100 AS DECIMAL(10, 2))  as 'phanTramDoanhThu' from Ve v
+	inner join LichChieu lC on v.maLichChieu = lC.maLichChieu 
+	where datename(month,v.ngayDatVe) like @month
+	group by lC.maPhim order by Sum(v.giaPhim + v.giaLoaiGhe) desc
+end
+
+create proc sp_SelectAmountTopThreeFoodInMonth(@month varchar(20))
+as begin
+	select top 3 cTV.thucAn , Sum(cTV.giaThucAn * cTV.soLuong) as 'doanhThu' ,
+	CAST(Sum(cTV.giaThucAn * cTV.soLuong)/(select Sum(cTV.giaThucAn * cTV.soLuong) from ChiTietVe cTV 
+	inner join Ve v on v.maVe = cTV.maVe
+	where datename(month,v.ngayDatVe) like @month) * 100 AS DECIMAL(10, 2))  as 'phanTramDoanhThu' from Ve v
+	inner join ChiTietVe cTV on v.maVe = cTV.maVe
+	where datename(month,v.ngayDatVe) like @month
+	group by cTV.thucAn order by Sum(cTV.giaThucAn * cTV.soLuong) desc
+end
+
+create proc sp_SelectMovieByMovieSchedule (@ngayChieu date, @tenPhong varchar(5), @thoiGian varchar(20))
+as begin
+	select p.* from LichChieu lC
+	inner join Phong pH on pH.maPhong = lC.maPhong 
+	inner join SuatChieu sC on  sC.maSuat = lC.maSuat
+	inner join Phim p on p.maPhim = lC.maPhim
+	where lC.ngayChieu like @ngayChieu and pH.tenPhong like @tenPhong and sC.thoiGian like @thoiGian
+end
+
+create proc sp_SelectMovieSchedule(@maPhim Varchar(20), @tenPhong varchar(5), @thoiGian varchar(20))
+as begin
+		select lC.* from Phim p 
+  		inner join LichChieu lC on p.maPhim = lC.maPhim
+  		inner join SuatChieu sC on lC.maSuat = sC.maSuat
+  		inner join Phong pH on lC.maPhong = pH.maPhong
+		where p.maPhim like @maPhim and pH.tenPhong like @tenPhong and sC.thoiGian like @thoiGian
+end
+
+create proc sp_SelectAmountMovieById(@idMovie varchar(20))
+as begin
+	select month(ngayDatVe) as 'thangSo' ,dateName(month, ngayDatVe) as 'thangChu', Sum(giaPhim + giaLoaiGhe)  as 'doanhThuPhim' from Ve v
+	inner join LichChieu lC on lC.maLichChieu = v.maLichChieu
+	where lC.maPhim like @idMovie
+	group by dateName(month, ngayDatVe ), month(ngayDatVe)
+	order by month(ngayDatVe) asc
+end
+
+Create proc sp_SelectAmountMovieByIdAdDate(@idMovie varchar(20), @date varchar(20))
+as begin
+	select Sum(giaPhim + giaLoaiGhe)  as 'doanhThuPhim' from Ve v
+	inner join LichChieu lC on lC.maLichChieu = v.maLichChieu
+	where lC.maPhim like @idMovie and ngayDatVe like @date
+	group by ngayDatVe
+end
+
+create proc sp_SelectAmountFoodByIdAdDate(@idThucAn varchar(20), @date varchar(20))
+as begin
+	select Sum(giaThucAn * soLuong)  as 'doanhThuThucAn' from ChiTietVe cTV
+	inner join Ve v on cTV.maVe = v.maVe
+	where cTV.thucAn like @idThucAn and ngayDatVe like @date
+	group by ngayDatVe
+end
